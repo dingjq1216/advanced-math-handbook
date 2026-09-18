@@ -440,6 +440,18 @@ mjx-container { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
   font-size: 13px; line-height: 1.65; color: #24292f;
   white-space: pre;
 }
+/* ASCII 图专用：框线（─ │ ┌ ┐ └ ┘ ├ ┬ ┴ ▼ 等）要上下行首尾相接才连成实线。
+   1.65em 行距（≈21.5px）远大于框线字形高度（≈15px），竖线会断成虚线，
+   整张图散架；收到 1.15em（≈15px）即可首尾相接。同时让包裹 CJK 的
+   inline-block 顶端对齐 —— 默认的基线对齐会把行盒再撑高约 10px。
+   ⚠ pre 也要一起改：<code> 是 inline，这些行盒其实建在 pre 的行内格式化
+     上下文里，行盒高度取「pre 的 strut」与「code 的行内盒」的较大者。
+     只改 code 没用 —— pre 的 strut（字号 16px × 继承行距）仍有 30px 高。
+   注意：这里只改纵向行距与字号，不碰横向，栅格列对齐完全不受影响。 */
+.prose .code-block.ascii-grid pre,
+.prose .code-block.ascii-grid pre code { font-size: 13px; line-height: 1.15; }
+.prose .code-block.ascii-grid pre code .fw1,
+.prose .code-block.ascii-grid pre code .fw2 { vertical-align: top; }
 
 /* ===================== 搜索结果 ===================== */
 .search-panel {

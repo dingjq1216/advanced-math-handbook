@@ -168,8 +168,13 @@
      靠字体修不了（local() 字体的 size-adjust 不生效）。
      这里把图内每个「非 ASCII 且非制表符」的字符都包进固定宽度的
      <i>：实测宽度 ≥ 1.5 列用 2ch，否则 1ch —— 与字体无关，绝对精确。
-     ⚠ 制表符 U+2500–257F 不包（本就半角，且参与框线拼接）。   */
-  var RE_GRID_WRAP = /[^\x20-\x7E\u2500-\u257F]/g;
+     ⚠ 制表符 U+2500–257F 不包（本就半角，且参与框线拼接）。
+     ⚠ 换行/回车/制表符必须排除：它们是控制字符，也在上面那个
+       「非 ASCII 可打印」补集里。一旦把 \n 包进 <i>，行断点就变成
+       一个 inline-block 原子盒，整张图会被排成一条横向长线
+       （pre 撑出几万像素、只能横向滚动），纵向层级全部消失。   */
+  var RE_GRID_WRAP = /[^\t\n\r\x20-\x7E\u2500-\u257F]/g;
+  var RE_BOXDRAW = /[\u2500-\u257F]/;   /* 带框线 → 这是图，不是代码 */
 
   function alignAsciiGrids(root) {
     var sample = root.querySelector('.code-block code');
@@ -191,6 +196,12 @@
       var el = blocks[i];
       if (el.getAttribute('data-grid') === '1') continue;
       el.setAttribute('data-grid', '1');
+      /* 图里的 │ ─ 要靠上下行首尾相接才连成实线，代码块的宽松行距
+         （1.65em）会把它们拉成虚线。含框线的块打上 ascii-grid，
+         由 css 单独收紧行距；普通代码块不受影响。 */
+      if (el.parentElement && RE_BOXDRAW.test(el.textContent)) {
+        (el.closest('.code-block') || el.parentElement).classList.add('ascii-grid');
+      }
       el.innerHTML = el.innerHTML.replace(RE_GRID_WRAP, function (ch) {
         return '<i class="fw' + boxOf(ch) + '">' + ch + '</i>';
       });

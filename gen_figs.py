@@ -132,44 +132,107 @@ class Canvas:
 
 # ---------- ch00 block0：全书层级依赖图 ----------
 def fig_layers() -> list[str]:
-    def group(title, items):
-        out = ["  " + title]
-        for i, (k, v) in enumerate(items):
-            br = "└─" if i == len(items) - 1 else "├─"
-            out.append("      " + br + " " + pad(k, 16) + v)
-        return out
+    """五层依赖图。三处「层级」各由一个专门的视觉载体承担：
 
-    rule = lambda s: s + "─" * max(0, 62 - w(s))
-    L = []
-    L += group(rule("L4  应用层 "), [
-        ("信号与变换", "傅里叶 · 采样 · 小波 · 框架"),
-        ("控制与决策", "经典 · 现代 · 鲁棒 · 最优 · 随机 · 非线性"),
-        ("学习与泛化", "优化 · NTK · 泛化界 · 生成模型"),
-        ("随机与统计", "随机过程 · 估计 · 信息论"),
-    ])
-    L.append(" " * 24 + "▲")
-    L += group(rule("L3  结构层 "), [
-        ("变换与系统", "傅里叶 · 拉普拉斯 · Z · 状态空间"),
-        ("概率与随机", "条件期望 · 鞅 · SDE · 滤波"),
-        ("优化与控制", "凸分析 · 变分法 · HJB · Riccati"),
-    ])
-    L.append(" " * 24 + "▲")
-    L += group(rule("L2  基础层（第一卷，全书的地基） "), [
-        ("测度与积分", "第 3 章"),
-        ("分布与弱导数", "第 4 章"),
-        ("复变与留数", "第 5 章   ← 全书复用最频繁的一章"),
-        ("泛函与 RKHS", "第 6 章"),
-    ])
-    L.append(" " * 24 + "▲")
-    L += group(rule("L1  分析基础 "), [
-        ("微积分进阶", "第 1 章"),
-        ("黎曼与反常积分", "第 2 章"),
-    ])
-    L.append(" " * 24 + "▲")
-    L += group(rule("L0  前置（读者已有）"), [
-        ("基础", "初等微积分 · 线性代数 · 初等概率 · 实数完备性"),
-    ])
-    return L
+    ① 每层一个方框 —— 框线就是这一层的边界，条目落在框内（包含关系）；
+    ② 框与框之间用中轴 ┬ │ ▼ ┴ 串成一条链 —— 从 L4 贯到 L0，
+       而不是五段各自顶着一条长横线的平行条目（这正是旧版"扁平"的来源）；
+    ③ 右侧两个大括号把上面两层（应用 / 结构）与下面三层（地基）分开 ——
+       括号标签「应用与结构」「全书的地基」都取自各层自身的职责描述，
+       不引入图外未定义的说法；两个标签等宽，右缘天然对齐。
+
+    宽度口径：方框上/下边框共 INNER 格横线，整行宽 INNER + 4 = 76 列；
+    中轴落在第 J 列，必须在边框的横线格（3 … 3+INNER-1）之内，
+    且要躲开写在边框上的层标题（最长 25 列）。
+    """
+    IND = "  "          # 整图左缩进
+    INNER = 72          # 方框上/下边框的横线格数
+    FIELD = INNER - 2   # 框内可用显示列
+    J = 38              # 中轴（┬ │ ▼ ┴）所在显示列
+    BRACE = 77          # 右侧大括号所在显示列
+    KEY_W = 16          # 条目名对齐宽度
+
+    layers = [
+        ("L4  应用层", "第二至第五卷 · 把下面三层的结论装成可用的方法", [
+            ("信号与变换", "傅里叶 · 采样 · 小波 · 框架"),
+            ("控制与决策", "经典 · 现代 · 鲁棒 · 最优 · 随机 · 非线性"),
+            ("学习与泛化", "优化 · NTK · 泛化界 · 生成模型"),
+            ("随机与统计", "随机过程 · 估计 · 信息论"),
+        ]),
+        ("L3  结构层", "第二至第五卷 · 各门类共用的一套结构语言", [
+            ("变换与系统", "傅里叶 · 拉普拉斯 · Z · 状态空间"),
+            ("概率与随机", "条件期望 · 鞅 · SDE · 滤波"),
+            ("优化与控制", "凸分析 · 变分法 · HJB · Riccati"),
+        ]),
+        ("L2  基础层", "第一卷 · 全书的地基，上层处处回头引用", [
+            ("测度与积分", "第 3 章"),
+            ("分布与弱导数", "第 4 章"),
+            ("复变与留数", "第 5 章   ← 全书复用最频繁的一章"),
+            ("泛函与 RKHS", "第 6 章"),
+        ]),
+        ("L1  分析基础", "第一卷 · 先把工具磨利，再谈别的", [
+            ("微积分进阶", "第 1 章"),
+            ("黎曼与反常积分", "第 2 章"),
+        ]),
+        ("L0  前置", "读者已有，本书不重复", [
+            ("基础", "初等微积分 · 线性代数 · 初等概率 · 实数完备性"),
+        ]),
+    ]
+
+    def border(left: str, right: str, joint: str | None, label: str = "") -> str:
+        """上/下边框。joint（┬ 或 ┴）落在中轴列 J 上。
+
+        层标题含 CJK，必须按**显示宽度**占格：一个全角字吃掉 2 格横线
+        （第二格置空）。按「1 字符 = 1 格」写会让整行多出 3 列，
+        于是带标题的边框与光边框右缘不齐、右侧大括号也错位。
+        """
+        cells = ["─"] * INNER
+        col = 0
+        for ch in label:
+            if col >= INNER:
+                break
+            span = 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+            cells[col] = ch
+            for k in range(1, span):
+                if col + k < INNER:
+                    cells[col + k] = ""
+            col += span
+        if joint:
+            cells[J - 3] = joint
+        return IND + left + "".join(cells) + right
+
+    def row(text: str) -> str:
+        return IND + "│ " + pad(text, FIELD) + " │"
+
+    lines: list[str] = []
+    top_at: list[int] = []
+    bot_at: list[int] = []
+    for i, (name, role, items) in enumerate(layers):
+        top_at.append(len(lines))
+        lines.append(border("┌", "┐", "┴" if i else None, "─ " + name + " "))
+        lines.append(row("  " + role))
+        for k, (key, val) in enumerate(items):
+            br = "└─" if k == len(items) - 1 else "├─"
+            lines.append(row("    " + br + " " + pad(key, KEY_W) + val))
+        bot_at.append(len(lines))
+        lines.append(border("└", "┘", "┬" if i < len(layers) - 1 else None))
+        if i < len(layers) - 1:
+            lines.append(" " * J + "│")
+            lines.append(" " * J + "▼")
+
+    def brace(group: str, a: int, b: int) -> None:
+        for i in range(a, b + 1):
+            gap = " " * (BRACE - w(lines[i]))
+            if i == a:
+                lines[i] += gap + "╭─ " + group
+            elif i == b:
+                lines[i] += gap + "╰──"
+            else:
+                lines[i] += gap + "│"
+
+    brace("应用与结构", top_at[0], bot_at[1])   # L4 + L3
+    brace("全书的地基", top_at[2], bot_at[4])   # L2 + L1 + L0
+    return lines
 
 
 # ---------- ch00 block1：控制线与鲁棒性对照 ----------
