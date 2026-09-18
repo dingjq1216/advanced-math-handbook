@@ -1,0 +1,17 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 草稿 / 一次性探针文件
+_typora_probe.md
+typora公式渲染测试.md
+mathprobe.json
+*.bak
+*.bak[0-9]*
+
+# 编辑器与 IDE
+.vscode/
+.idea/
+
+# 工作区内部记录
+.workbuddy/

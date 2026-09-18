@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>进阶数学手册 · 信号处理 / 控制 / 机器学习 / 泛化理论</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<script>
+/* ---------------- MathJax 配置（离线 SVG 输出，无字体依赖） ---------------- */
+window.MathJax = {
+  /* ams / boldsymbol 属于"按需加载"的扩展：只写 packages 并不会加载它们，
+     必须用 loader.load 声明，否则 \boldsymbol 会被当作未定义宏渲染成红字。 */
+  loader: { load: ['[tex]/ams', '[tex]/boldsymbol'] },
+  tex: {
+    inlineMath:  [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+    processEscapes: true,
+    packages: { '[+]': ['ams', 'boldsymbol'] },
+    tags: 'none',
+    tagSide: 'right'
+  },
+  svg: { fontCache: 'global', scale: 1 },
+  options: {
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+    ignoreHtmlClass: 'no-mathjax',
+    enableMenu: true
+  },
+  startup: {
+    typeset: true,
+    /* 启动失败时给出可见提示，而不是静默不渲染 */
+    failed: function (err) {
+      console.error('MathJax 启动失败：', err);
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);' +
+        'background:#fdf1f2;border:1px solid #b02a37;color:#b02a37;padding:10px 16px;' +
+        'border-radius:8px;font:13px/1.6 system-ui;z-index:9999;max-width:80vw';
+      box.textContent = '公式引擎加载失败（' + (err && err.message ? err.message : err) +
+        '）。请确认 vendor/mathjax 目录完整。';
+      document.body.appendChild(box);
+    }
+  }
+};
+</script>
+</head>
+
+<body>
+
+<div class="progress" id="progress"></div>
+
+<header class="topbar">
+  <button class="btn-ico" id="btnNav" title="目录">☰</button>
+  <div class="brand">
+    <b>进阶数学手册</b>
+    <span>信号处理 · 控制 · 机器学习 · 泛化理论</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="search-wrap">
+    <input id="searchInput" type="search" placeholder="搜索全书…（按 /）" autocomplete="off" spellcheck="false">
+  </div>
+  <button class="btn-ico" onclick="window.print()" title="打印 / 导出 PDF">打印</button>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<main class="main">
+  <article class="article" id="article"></article>
+</main>
+
+<aside class="toc-col" id="tocCol"></aside>
+
+<section class="search-panel" id="searchPanel"></section>
+
+<!-- 同步脚本（非 defer）：确保 MathJax 与数据在渲染前完全就绪 -->
+<script src="vendor/mathjax/tex-svg.js"></script>
+<script src="content/all.js"></script>
+<script src="assets/app.js"></script>
+
+</body>
+</html>
