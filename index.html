@@ -7,16 +7,17 @@
 <link rel="stylesheet" href="assets/style.css">
 
 <script>
-/* ---------------- MathJax 配置（离线 SVG 输出，无字体依赖） ---------------- */
+/* ---------------- MathJax 配置（离线 SVG 输出，无字体依赖） ----------------
+   这里用的是全量包 tex-svg-full.js：ams、boldsymbol 等扩展全都打在同一
+   个文件里，排版期不会再向 input/tex/extensions/ 发子请求。原先的
+   tex-svg.js 遇到 \boldsymbol 要单独去取 boldsymbol.js，那一次请求失败
+   （资源缺失、被拦截、或缓存了旧的失败结果）就会让整个公式引擎起不来，
+   页面上只剩一排 $…$。少一个请求，就少一个失败点。 */
 window.MathJax = {
-  /* ams / boldsymbol 属于"按需加载"的扩展：只写 packages 并不会加载它们，
-     必须用 loader.load 声明，否则 \boldsymbol 会被当作未定义宏渲染成红字。 */
-  loader: { load: ['[tex]/ams', '[tex]/boldsymbol'] },
   tex: {
     inlineMath:  [['$', '$'], ['\\(', '\\)']],
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
     processEscapes: true,
-    packages: { '[+]': ['ams', 'boldsymbol'] },
     tags: 'none',
     tagSide: 'right'
   },
@@ -28,18 +29,30 @@ window.MathJax = {
   },
   startup: {
     typeset: true,
-    /* 启动失败时给出可见提示，而不是静默不渲染 */
-    failed: function (err) {
-      console.error('MathJax 启动失败：', err);
-      var box = document.createElement('div');
-      box.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);' +
-        'background:#fdf1f2;border:1px solid #b02a37;color:#b02a37;padding:10px 16px;' +
-        'border-radius:8px;font:13px/1.6 system-ui;z-index:9999;max-width:80vw';
-      box.textContent = '公式引擎加载失败（' + (err && err.message ? err.message : err) +
-        '）。请确认 vendor/mathjax 目录完整。';
-      document.body.appendChild(box);
-    }
+    /* 启动失败时给出可见提示，而不是静默留一页裸美元符号 */
+    failed: function (err) { if (window.__mathFail) window.__mathFail(err); }
   }
+};
+
+/* 公式引擎没能启动时的提示条（外观样式在 assets/style.css 的 #mathFailBox） */
+window.__mathFail = function (err) {
+  if (document.getElementById('mathFailBox')) return;
+  var msg = (err && err.message) ? err.message : String(err || '未知原因');
+  var box = document.createElement('div');
+  box.id = 'mathFailBox';
+  var b = document.createElement('b');
+  b.textContent = '公式引擎没能启动';
+  var s = document.createElement('span');
+  s.textContent = '正文里的公式会以 $…$ 的原样显示。多半是脚本没加载完，或者浏览器缓存了旧版本；' +
+    '按住 Shift 刷新一次通常就好。技术信息：' + msg;
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = '重新加载';
+  btn.addEventListener('click', function () { window.location.reload(); });
+  box.appendChild(b);
+  box.appendChild(s);
+  box.appendChild(btn);
+  document.body.appendChild(box);
 };
 </script>
 </head>
@@ -49,7 +62,7 @@ window.MathJax = {
 <div class="progress" id="progress"></div>
 
 <header class="topbar">
-  <button class="btn-ico" id="btnNav" title="目录">☰</button>
+  <button class="btn-ico" id="btnNav" title="收起 / 展开整书目录" aria-label="整书目录" aria-pressed="false">☰</button>
   <div class="brand">
     <b>进阶数学手册</b>
     <span>信号处理 · 控制 · 机器学习 · 泛化理论</span>
@@ -58,6 +71,7 @@ window.MathJax = {
   <div class="search-wrap">
     <input id="searchInput" type="search" placeholder="搜索全书…（按 /）" autocomplete="off" spellcheck="false">
   </div>
+  <button class="btn-ico" id="btnToc" title="收起 / 展开本节目录" aria-label="本节目录" aria-pressed="false">小节</button>
   <button class="btn-ico" onclick="window.print()" title="打印 / 导出 PDF">打印</button>
 </header>
 
@@ -74,7 +88,8 @@ window.MathJax = {
 <section class="search-panel" id="searchPanel"></section>
 
 <!-- 同步脚本（非 defer）：确保 MathJax 与数据在渲染前完全就绪 -->
-<script src="vendor/mathjax/tex-svg.js"></script>
+<script src="vendor/mathjax/tex-svg-full.js"
+        onerror="window.__mathFail && window.__mathFail('脚本未能加载：vendor/mathjax/tex-svg-full.js')"></script>
 <script src="content/all.js"></script>
 <script src="assets/app.js"></script>
 

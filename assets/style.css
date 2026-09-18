@@ -137,9 +137,15 @@ a:hover { text-decoration: underline; }
 }
 .btn-ico:hover { background: var(--bg-side-hover); color: var(--primary); }
 
-#btnNav { display: none; font-size: 16px; padding: 0 10px; }
+/* 两个开合按钮在任何宽度都要在：窄屏收起左栏抽屉，宽屏收起整列。
+   右栏只在放得下的时候（≥1321px）出现，所以按钮也跟着藏。 */
+#btnNav { font-size: 16px; padding: 0 10px; }
+#btnToc { display: none; }
+#btnNav[aria-pressed="true"],
+#btnToc[aria-pressed="true"] {
+  background: var(--primary-soft); color: var(--primary); border-color: #bcd0e8;
+}
 @media (max-width: 900px) {
-  #btnNav { display: block; }
   .brand span { display: none; }
 }
 
@@ -154,6 +160,7 @@ a:hover { text-decoration: underline; }
   overflow-y: auto;
   padding: 14px 0 60px;
   z-index: 40;
+  transition: transform .22s ease;
 }
 .sidebar::-webkit-scrollbar { width: 8px; }
 .sidebar::-webkit-scrollbar-thumb { background: #d3d8de; border-radius: 4px; }
@@ -212,6 +219,7 @@ a:hover { text-decoration: underline; }
   overflow-y: auto;
   border-left: 1px solid var(--border-soft);
   background: #fff;
+  transition: transform .22s ease;
 }
 .toc-col h4 {
   margin: 0 0 10px; font-size: 11px; letter-spacing: 1.1px;
@@ -229,12 +237,35 @@ a:hover { text-decoration: underline; }
 .toc-col a.on { color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
 
 @media (max-width: 1320px) { .toc-col { display: none; } }
+
+/* ---------------------------------------------------------------
+   两栏的开合
+   ---------------------------------------------------------------
+   窄屏（≤900px）：左栏是抽屉，靠 body.nav-open 拉出，配一层遮罩。
+   宽屏：左右两栏都是「列」，收起时滑出视野，正文区自动补位。
+   关键在 @media (min-width:1321px) 里的 margin-right —— 右栏的宽度
+   必须从正文区里预留出来。原先右栏是 position:fixed; right:0 悬浮
+   在那儿，正文只让开了左边，于是 1321～1572px 这一段宽度下，白色的
+   目录面板直接压在居中的正文上，公式和表格的右半截都被盖住。 */
+body.nav-collapsed .sidebar   { transform: translateX(-100%); }
+body.nav-collapsed .main      { margin-left: 0; }
+body.nav-collapsed .search-panel { left: 0; }
+
+body.toc-collapsed .toc-col   { transform: translateX(100%); }
+body.toc-collapsed .main      { margin-right: 0; }
+
+@media (min-width: 1321px) {
+  .main  { margin-right: var(--toc-w); }
+  #btnToc { display: block; }
+}
+
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); transition: .2s; }
+  .sidebar { transform: translateX(-100%); }
   body.nav-open .sidebar { transform: none; }
   .main { margin-left: 0; }
   .article { padding: 26px 20px 120px; }
   .search-wrap input { width: 150px; }
+  .search-panel { left: 0; padding: 20px 20px 60px; }
 }
 
 /* ===================== 章头 ===================== */
@@ -462,9 +493,34 @@ body.nav-open .scrim { display: block; }
 .card.soon { opacity: .55; cursor: default; }
 .card.soon:hover { border-color: var(--border); box-shadow: none; transform: none; }
 
+/* 公式引擎启动失败时的提示条（由 index.html 的 __mathFail 插入） */
+#mathFailBox {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  max-width: min(760px, 92vw);
+  padding: 11px 16px;
+  background: #fdf1f2;
+  border: 1px solid #e3b4b9;
+  border-radius: 8px;
+  color: var(--warn);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.6;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  z-index: 9999;
+}
+#mathFailBox b { flex: 0 0 auto; }
+#mathFailBox span { color: #8a2b34; }
+#mathFailBox button {
+  flex: 0 0 auto; cursor: pointer;
+  padding: 3px 12px; border-radius: 6px;
+  border: 1px solid #d9a2a8; background: #fff; color: var(--warn);
+  font-family: var(--font-ui); font-size: 12.5px;
+}
+#mathFailBox button:hover { background: #fbe6e8; }
+
 /* 打印 */
 @media print {
-  .topbar, .sidebar, .toc-col, .pager, .progress, .search-panel, .scrim { display: none !important; }
+  .topbar, .sidebar, .toc-col, .pager, .progress, .search-panel, .scrim,
+  #mathFailBox { display: none !important; }
   .main { margin: 0; }
   .article { max-width: none; padding: 0; }
   .prose { font-size: 11pt; }

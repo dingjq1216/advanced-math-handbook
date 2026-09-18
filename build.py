@@ -313,11 +313,36 @@ def annotate_headings(html_str: str, cid: str):
 
 
 # ----------------------------------------------------------------------
+# 构建期体检：公式定界符有没有配对
+# ----------------------------------------------------------------------
+CJK_RE = re.compile(r"[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]")
+
+
+def lint_delimiters(body: str, maths, cid: str) -> list[str]:
+    """体检 preprocess 的产物，返回警告文本。
+
+    inline 的 `$…$` 规则（INLINE_DOLLAR）不能跨行。源文件里若把一个 `$…$`
+    折成两行，收尾的那个 `$` 会被同一行后面 `$，$` 的开头抢走——结果是中文被
+    包成公式，真正的公式反而留在正文里，页面上显示成裸的 `$…$`。这种错误
+    不会抛异常，只会悄悄坏掉，所以在这里显式报出来。
+    """
+    warns = []
+    leftover = len(re.findall(r"(?<!\\)\$", body))
+    if leftover:
+        warns.append(f"{cid}: 还有 {leftover} 个 `$` 没能配对（多半是 `$…$` 被折成了两行）")
+    for tex, display in maths:
+        if not display and "\\" not in tex and CJK_RE.search(tex):
+            warns.append(f"{cid}: 疑似把中文当成公式吞掉了 —— ${tex.strip()}$")
+    return warns
+
+
+# ----------------------------------------------------------------------
 # 主流程
 # ----------------------------------------------------------------------
 def main():
     chapters: dict[str, dict] = {}
     built, missing = [], []
+    warns: list[str] = []
 
     for vol in TOC:
         for ch in vol["chapters"]:
@@ -331,6 +356,7 @@ def main():
             raw = re.sub(r"^#\s+.*?\n", "", raw, count=1)
 
             body, fences, maths = preprocess(raw)
+            warns += lint_delimiters(body, maths, ch["id"])
             md = markdown.Markdown(extensions=MD_EXT, output_format="html5")
             html_str = md.convert(body)
             html_str = restore(html_str, fences, maths)
@@ -365,6 +391,10 @@ def main():
     print(f"     输出 → {OUT_DIR / 'all.js'}")
     if missing:
         print(f"[--] 尚未撰写 {len(missing)} 章：{', '.join(missing)}")
+    if warns:
+        print(f"[!!] 公式体检发现 {len(warns)} 处问题（页面上会显示成裸的 $…$）：")
+        for w in warns:
+            print(f"     {w}")
 
 
 if __name__ == "__main__":

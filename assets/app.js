@@ -35,13 +35,21 @@
     });
   }
 
+  /* ---------- 公式排版 ----------
+     MathJax 就绪后统一走 typesetPromise；startup 被拒绝（某个扩展缺失）
+     时也再试一次。若引擎最终没能挂上，交给 __mathFail 给出可见提示 ——
+     宁可弹一条能点的提示，也不要留一页没人认识的 $…$。 */
+  function mathOffline(err) {
+    if (typeof window.__mathFail === 'function') window.__mathFail(err);
+  }
+
   function typeset(el) {
     var run = function () {
       if (window.MathJax && window.MathJax.typesetPromise) {
         return window.MathJax.typesetPromise([el])
           .catch(function (e) { console.warn('MathJax:', e); });
       }
-      return Promise.resolve();
+      return Promise.reject(new Error('MathJax.typesetPromise 不可用'));
     };
     var MJ = window.MathJax;
     // 首选 microtask 路径（不依赖计时器，任何环境下都可靠）
@@ -49,15 +57,16 @@
       return MJ.startup.promise.then(run, function () {
         // startup 被拒绝（例如某扩展缺失）时仍尝试一次
         return run();
-      });
+      }).catch(mathOffline);
     }
     // 兜底：轮询等待 MathJax 挂载
     return new Promise(function (resolve) {
       var tries = 0;
       (function poll() {
         if (window.MathJax && window.MathJax.typesetPromise) {
-          run().then(resolve);
+          run().then(resolve, resolve);
         } else if (tries++ > 400) {
+          mathOffline(new Error('脚本未加载：vendor/mathjax/tex-svg-full.js'));
           resolve();
         } else {
           setTimeout(poll, 50);
@@ -372,6 +381,38 @@
     elInput.blur();
   }
 
+  /* ---------- 两栏的开合状态 ----------
+     宽屏（>900px）左右两栏都能收起，状态记在 localStorage，下次打开
+     还是上次的样子；窄屏不做记忆 —— 左栏在那里是抽屉，进页面就该是
+     关着的。按钮上用 aria-pressed 反映当前状态，样式表照着上色。 */
+  var LAYOUT_KEY = 'amh-layout';
+  var layout = (function () {
+    try { return JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  })();
+
+  function saveLayout() {
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
+  }
+
+  function isNarrow() {
+    return window.matchMedia
+      ? window.matchMedia('(max-width: 900px)').matches
+      : window.innerWidth <= 900;
+  }
+
+  function applyLayout() {
+    if (isNarrow()) {
+      document.body.classList.remove('nav-collapsed', 'toc-collapsed');
+    } else {
+      document.body.classList.toggle('nav-collapsed', !!layout.nav);
+      document.body.classList.toggle('toc-collapsed', !!layout.toc);
+    }
+    var nb = $('#btnNav'), tb = $('#btnToc');
+    if (nb) nb.setAttribute('aria-pressed', String(document.body.classList.contains('nav-collapsed')));
+    if (tb) tb.setAttribute('aria-pressed', String(document.body.classList.contains('toc-collapsed')));
+  }
+
   /* ---------- 事件绑定 ---------- */
   function bind() {
     if (elInput) {
@@ -418,16 +459,42 @@
       }
     });
 
+    /* 左栏按钮：窄屏开合抽屉，宽屏收起整列 —— 同一个按钮，两种语义 */
     var btnNav = $('#btnNav');
-    if (btnNav) btnNav.addEventListener('click', function () { document.body.classList.toggle('nav-open'); });
+    if (btnNav) btnNav.addEventListener('click', function () {
+      if (isNarrow()) {
+        document.body.classList.toggle('nav-open');
+      } else {
+        layout.nav = !document.body.classList.contains('nav-collapsed');
+        saveLayout();
+        applyLayout();
+      }
+    });
+
+    var btnToc = $('#btnToc');
+    if (btnToc) btnToc.addEventListener('click', function () {
+      layout.toc = !document.body.classList.contains('toc-collapsed');
+      saveLayout();
+      applyLayout();
+    });
+
     var scrim = $('#scrim');
     if (scrim) scrim.addEventListener('click', function () { document.body.classList.remove('nav-open'); });
+
+    /* 跨过 900px 时切换语义：抽屉状态清掉，宽屏折叠状态重新按记忆铺上 */
+    var mqNarrow = window.matchMedia ? window.matchMedia('(max-width: 900px)') : null;
+    if (mqNarrow) {
+      var onMq = function () { document.body.classList.remove('nav-open'); applyLayout(); };
+      if (mqNarrow.addEventListener) mqNarrow.addEventListener('change', onMq);
+      else if (mqNarrow.addListener) mqNarrow.addListener(onMq);
+    }
 
     window.addEventListener('hashchange', function () { route(true); });
   }
 
   /* ---------- 启动 ---------- */
   renderSidebar();
+  applyLayout();
   bind();
   route(true);
 })();
